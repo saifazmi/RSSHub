@@ -10,7 +10,7 @@ import { fallback, queryToBoolean } from '@/utils/readable-social';
 
 export const route: Route = {
     path: '/user/:uid/:routeParams?',
-    categories: ['social-media', 'popular'],
+    categories: ['social-media'],
     view: ViewType.SocialMedia,
     example: '/weibo/user/1195230310',
     parameters: { uid: '用户 id, 博主主页打开控制台执行 `$CONFIG.oid` 获取', routeParams: '额外参数；请参阅上面的说明和表格；特别地，当 `routeParams=1` 时开启微博视频显示' },
@@ -22,7 +22,7 @@ export const route: Route = {
                 description: '',
             },
         ],
-        requirePuppeteer: false,
+        requirePuppeteer: true,
         antiCrawler: true,
         supportBT: false,
         supportPodcast: false,
@@ -69,23 +69,25 @@ async function handler(ctx) {
             showBloggerIcons = fallback(undefined, queryToBoolean(routeParams.showBloggerIcons), false) ? '1' : '0';
         }
     }
-    const containerData = await cache.tryGet(
-        `weibo:user:index:${uid}`,
-        async () => {
-            const _r = await got({
-                method: 'get',
-                url: `https://m.weibo.cn/api/container/getIndex?type=uid&value=${uid}`,
-                headers: {
-                    Referer: `https://m.weibo.cn/u/${uid}`,
-                    'MWeibo-Pwa': 1,
-                    'X-Requested-With': 'XMLHttpRequest',
-                    Cookie: config.weibo.cookies,
-                },
-            });
-            return _r.data;
-        },
-        config.cache.routeExpire,
-        false
+
+    const containerData = await weiboUtils.tryWithCookies((cookies) =>
+        cache.tryGet(
+            `weibo:user:index:${uid}`,
+            async () => {
+                const _r = await got({
+                    method: 'get',
+                    url: `https://m.weibo.cn/api/container/getIndex?type=uid&value=${uid}`,
+                    headers: {
+                        Referer: `https://m.weibo.cn/u/${uid}`,
+                        Cookie: cookies,
+                        ...weiboUtils.apiHeaders,
+                    },
+                });
+                return _r.data;
+            },
+            config.cache.routeExpire,
+            false
+        )
     );
 
     const name = containerData.data.userInfo.screen_name;
@@ -93,23 +95,24 @@ async function handler(ctx) {
     const profileImageUrl = containerData.data.userInfo.profile_image_url;
     const containerId = containerData.data.tabsInfo.tabs.find((item) => item.tab_type === 'weibo').containerid;
 
-    const cards = await cache.tryGet(
-        `weibo:user:cards:${uid}:${containerId}`,
-        async () => {
-            const _r = await got({
-                method: 'get',
-                url: `https://m.weibo.cn/api/container/getIndex?type=uid&value=${uid}&containerid=${containerId}`,
-                headers: {
-                    Referer: `https://m.weibo.cn/u/${uid}`,
-                    'MWeibo-Pwa': 1,
-                    'X-Requested-With': 'XMLHttpRequest',
-                    Cookie: config.weibo.cookies,
-                },
-            });
-            return _r.data.data.cards;
-        },
-        config.cache.routeExpire,
-        false
+    const cards = await weiboUtils.tryWithCookies((cookies) =>
+        cache.tryGet(
+            `weibo:user:cards:${uid}:${containerId}`,
+            async () => {
+                const _r = await got({
+                    method: 'get',
+                    url: `https://m.weibo.cn/api/container/getIndex?type=uid&value=${uid}&containerid=${containerId}`,
+                    headers: {
+                        Referer: `https://m.weibo.cn/u/${uid}`,
+                        Cookie: cookies,
+                        ...weiboUtils.apiHeaders,
+                    },
+                });
+                return _r.data.data.cards;
+            },
+            config.cache.routeExpire,
+            false
+        )
     );
 
     let resultItems = await Promise.all(

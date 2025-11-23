@@ -1,4 +1,3 @@
-import randUserAgent from '@/utils/rand-user-agent';
 import 'dotenv/config';
 import { ofetch } from 'ofetch';
 
@@ -10,6 +9,7 @@ export type Config = {
     enableCluster?: string;
     isPackage: boolean;
     nodeName?: string;
+    puppeteerRealBrowserService?: string;
     puppeteerWSEndpoint?: string;
     chromiumExecutablePath?: string;
     // network
@@ -37,6 +37,7 @@ export type Config = {
     };
     // proxy
     proxyUri?: string;
+    proxyUris?: string[];
     proxy: {
         protocol?: string;
         host?: string;
@@ -44,6 +45,8 @@ export type Config = {
         auth?: string;
         url_regex: string;
         strategy: 'on_retry' | 'all';
+        failoverTimeout?: number;
+        healthCheckInterval?: number;
     };
     pacUri?: string;
     pacScript?: string;
@@ -73,6 +76,7 @@ export type Config = {
         allow_user_hotlink_template: boolean;
         filter_regex_engine: string;
         allow_user_supply_unsafe_domain: boolean;
+        disable_nsfw: boolean;
     };
     suffix?: string;
     titleLengthLimit: number;
@@ -98,6 +102,7 @@ export type Config = {
         cookies: Record<string, string | undefined>;
         dmImgList?: string;
         dmImgInter?: string;
+        excludeSubtitles?: boolean;
     };
     bitbucket: {
         username?: string;
@@ -182,6 +187,7 @@ export type Config = {
     };
     hefeng: {
         key?: string;
+        apiHost?: string;
     };
     infzm: {
         cookie?: string;
@@ -216,6 +222,9 @@ export type Config = {
     lightnovel: {
         cookie?: string;
     };
+    lofter: {
+        cookies?: string;
+    };
     lorientlejour: {
         token?: string;
         username?: string;
@@ -224,6 +233,13 @@ export type Config = {
     malaysiakini: {
         email?: string;
         password?: string;
+        refreshToken?: string;
+    };
+    mangadex: {
+        username?: string;
+        password?: string;
+        clientId?: string;
+        clientSecret?: string;
         refreshToken?: string;
     };
     manhuagui: {
@@ -247,6 +263,10 @@ export type Config = {
     };
     misskey: {
         accessToken?: string;
+    };
+    mixi2: {
+        authToken?: string;
+        authKey?: string;
     };
     mox: {
         cookie: string;
@@ -306,6 +326,10 @@ export type Config = {
     scihub: {
         host?: string;
     };
+    sdo: {
+        ff14risingstones?: string;
+        ua?: string;
+    };
     sis001: {
         baseUrl?: string;
     };
@@ -340,6 +364,11 @@ export type Config = {
     };
     tsdm39: {
         cookie: string;
+    };
+    tumblr: {
+        clientId?: string;
+        clientSecret?: string;
+        refreshToken?: string;
     };
     twitter: {
         username?: string[];
@@ -401,6 +430,9 @@ export type Config = {
     zsxq: {
         accessToken?: string;
     };
+    smzdm: {
+        cookie?: string;
+    };
 };
 
 const value: Config | Record<string, any> = {};
@@ -446,9 +478,10 @@ const calculateValue = () => {
     const _value = {
         // app config
         disallowRobot: toBoolean(envs.DISALLOW_ROBOT, false),
-        enableCluster: envs.ENABLE_CLUSTER,
+        enableCluster: toBoolean(envs.ENABLE_CLUSTER, false),
         isPackage: !!envs.IS_PACKAGE,
         nodeName: envs.NODE_NAME,
+        puppeteerRealBrowserService: envs.PUPPETEER_REAL_BROWSER_SERVICE,
         puppeteerWSEndpoint: envs.PUPPETEER_WS_ENDPOINT,
         chromiumExecutablePath: envs.CHROMIUM_EXECUTABLE_PATH,
         // network
@@ -458,7 +491,7 @@ const calculateValue = () => {
         listenInaddrAny: toBoolean(envs.LISTEN_INADDR_ANY, true), // 是否允许公网连接，取值 0 1
         requestRetry: toInt(envs.REQUEST_RETRY, 2), // 请求失败重试次数
         requestTimeout: toInt(envs.REQUEST_TIMEOUT, 30000), // Milliseconds to wait for the server to end the response before aborting the request
-        ua: envs.UA ?? (toBoolean(envs.NO_RANDOM_UA, false) ? TRUE_UA : randUserAgent({ browser: 'chrome', os: 'mac os', device: 'desktop' })),
+        ua: envs.UA ?? (toBoolean(envs.NO_RANDOM_UA, false) ? TRUE_UA : 'Mozilla/5.0 (Macintosh; Intel Mac OS X 15_6_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36'),
         trueUA: TRUE_UA,
         allowOrigin: envs.ALLOW_ORIGIN,
         // cache
@@ -477,6 +510,11 @@ const calculateValue = () => {
         },
         // proxy
         proxyUri: envs.PROXY_URI,
+        proxyUris: envs.PROXY_URIS
+            ? envs.PROXY_URIS.split(',')
+                  .map((uri) => uri.trim())
+                  .filter(Boolean)
+            : undefined,
         proxy: {
             protocol: envs.PROXY_PROTOCOL,
             host: envs.PROXY_HOST,
@@ -484,6 +522,8 @@ const calculateValue = () => {
             auth: envs.PROXY_AUTH,
             url_regex: envs.PROXY_URL_REGEX || '.*',
             strategy: envs.PROXY_STRATEGY || 'all', // all / on_retry
+            failoverTimeout: toInt(envs.PROXY_FAILOVER_TIMEOUT, 5000),
+            healthCheckInterval: toInt(envs.PROXY_HEALTH_CHECK_INTERVAL, 60000),
         },
         pacUri: envs.PAC_URI,
         pacScript: envs.PAC_SCRIPT,
@@ -514,6 +554,7 @@ const calculateValue = () => {
             allow_user_hotlink_template: toBoolean(envs.ALLOW_USER_HOTLINK_TEMPLATE, false),
             filter_regex_engine: envs.FILTER_REGEX_ENGINE || 're2',
             allow_user_supply_unsafe_domain: toBoolean(envs.ALLOW_USER_SUPPLY_UNSAFE_DOMAIN, false),
+            disable_nsfw: toBoolean(envs.DISABLE_NSFW, false),
         },
         suffix: envs.SUFFIX,
         titleLengthLimit: toInt(envs.TITLE_LENGTH_LIMIT, 150),
@@ -539,6 +580,7 @@ const calculateValue = () => {
             cookies: bilibili_cookies,
             dmImgList: envs.BILIBILI_DM_IMG_LIST,
             dmImgInter: envs.BILIBILI_DM_IMG_INTER,
+            excludeSubtitles: toBoolean(envs.BILIBILI_EXCLUDE_SUBTITLES, false),
         },
         bitbucket: {
             username: envs.BITBUCKET_USERNAME,
@@ -623,6 +665,7 @@ const calculateValue = () => {
         },
         hefeng: {
             key: envs.HEFENG_KEY,
+            apiHost: envs.HEFENG_API_HOST,
         },
         infzm: {
             cookie: envs.INFZM_COOKIE,
@@ -657,6 +700,9 @@ const calculateValue = () => {
         lightnovel: {
             cookie: envs.SECURITY_KEY,
         },
+        lofter: {
+            cookies: envs.LOFTER_COOKIE,
+        },
         lorientlejour: {
             token: envs.LORIENTLEJOUR_TOKEN,
             username: envs.LORIENTLEJOUR_USERNAME,
@@ -666,6 +712,13 @@ const calculateValue = () => {
             email: envs.MALAYSIAKINI_EMAIL,
             password: envs.MALAYSIAKINI_PASSWORD,
             refreshToken: envs.MALAYSIAKINI_REFRESHTOKEN,
+        },
+        mangadex: {
+            username: envs.MANGADEX_USERNAME, // required when refresh-token is not set
+            password: envs.MANGADEX_PASSWORD, // required when refresh-token is not set
+            clientId: envs.MANGADEX_CLIENT_ID,
+            clientSecret: envs.MANGADEX_CLIENT_SECRET,
+            refreshToken: envs.MANGADEX_REFRESH_TOKEN,
         },
         manhuagui: {
             cookie: envs.MHGUI_COOKIE,
@@ -688,6 +741,10 @@ const calculateValue = () => {
         },
         misskey: {
             accessToken: envs.MISSKEY_ACCESS_TOKEN,
+        },
+        mixi2: {
+            authToken: envs.MIXI2_AUTH_TOKEN,
+            authKey: envs.MIXI2_AUTH_KEY,
         },
         mox: {
             cookie: envs.MOX_COOKIE,
@@ -747,6 +804,10 @@ const calculateValue = () => {
         scihub: {
             host: envs.SCIHUB_HOST || 'https://sci-hub.se/',
         },
+        sdo: {
+            ff14risingstones: envs.SDO_FF14RISINGSTONES,
+            ua: envs.SDO_UA,
+        },
         sis001: {
             baseUrl: envs.SIS001_BASE_URL || 'https://sis001.com',
         },
@@ -781,6 +842,11 @@ const calculateValue = () => {
         },
         tsdm39: {
             cookie: envs.TSDM39_COOKIES,
+        },
+        tumblr: {
+            clientId: envs.TUMBLR_CLIENT_ID,
+            clientSecret: envs.TUMBLR_CLIENT_SECRET,
+            refreshToken: envs.TUMBLR_REFRESH_TOKEN,
         },
         twitter: {
             username: envs.TWITTER_USERNAME?.split(','),
@@ -841,6 +907,9 @@ const calculateValue = () => {
         },
         zsxq: {
             accessToken: envs.ZSXQ_ACCESS_TOKEN,
+        },
+        smzdm: {
+            cookie: envs.SMZDM_COOKIE,
         },
     };
 

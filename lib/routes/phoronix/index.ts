@@ -1,4 +1,5 @@
 import { Route } from '@/types';
+import ofetch from '@/utils/ofetch';
 import cache from '@/utils/cache';
 import parser from '@/utils/rss-parser';
 import { load } from 'cheerio';
@@ -17,7 +18,8 @@ const baseUrl = 'https://www.phoronix.com';
 const rssUrl = `${baseUrl}/rss.php`;
 
 const feedFetch = async () => {
-    const feed = await parser.parseURL(rssUrl);
+    const feedStr = await ofetch(rssUrl);
+    const feed = await parser.parseString(feedStr);
     return {
         title: feed.title,
         link: feed.link,
@@ -114,7 +116,7 @@ const tryFetch = async (category, topic) => {
 
 export const route: Route = {
     path: '/:category?/:topic?',
-    categories: ['new-media', 'popular'],
+    categories: ['new-media'],
     example: '/phoronix/linux/KDE',
     parameters: {
         category: 'Category',
